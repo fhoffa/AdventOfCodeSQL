@@ -1,30 +1,41 @@
-create or replace temp table boarding_passes as
-select index i, value v
-from table(flatten(split(
-'BFFFBBFRRR
-FFFBBBFRRR
-BBFFBBFRLL', '\n')));
+create or replace temp table questions as 
+select index i, strtok_to_array(value, '\n ') v
+from table(flatten(SPLIT(
+'abc
 
--- todo: simplify to binary
-select max(rown*8+seat)
+a
+b
+c
+
+ab
+ac
+
+a
+a
+a
+a
+
+b', '\n\n')));
+
+select sum(answers)
 from (
-    select x[0]::int*64+x[1]::int*32+x[2]::int*16+x[3]::int*8+x[4]::int*4+x[5]::int*2+x[6]::int*1 rown
-      , x[7]::int*4+x[8]::int*2+x[9]::int*1 seat
-    from (
-        select split(regexp_replace(regexp_replace(v, '[FL]', '0,'), '[BR]', '1,'), ',') x
-        from boarding_passes2
-    )
+    select i, count(distinct y.value) answers
+    from questions
+      , lateral flatten(input=>v) x
+      , table(split_to_table(regexp_replace(x.value, '.', ',\\0', 2), ',')) y
+    group by i  
 );
 
--- todo: simplify to binary
-select rown*8+seat id, id-lag(id) over(order by id) skip, id-1 answer
+select sum(common_answers)
 from (
-    select x[0]::int*64+x[1]::int*32+x[2]::int*16+x[3]::int*8+x[4]::int*4+x[5]::int*2+x[6]::int*1 rown
-      , x[7]::int*4+x[8]::int*2+x[9]::int*1 seat
+    select i, count_if(letter_count=group_size) common_answers
     from (
-        select split(regexp_replace(regexp_replace(v, '[FL]', '0,'), '[BR]', '1,'), ',') x
-    from boarding_passes2
+        select i, y.value letter, count(*) letter_count, array_size(any_value(v)) group_size
+        from questions2
+          , lateral flatten(input=>v) x
+          , table(split_to_table(regexp_replace(x.value, '.', ',\\0', 2), ',')) y
+        group by i, y.value
     )
+    group by i
 )
-qualify skip=2
 ;

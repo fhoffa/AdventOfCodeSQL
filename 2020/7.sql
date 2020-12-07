@@ -10,11 +10,11 @@ vibrant plum bags contain 5 faded blue bags, 6 dotted black bags.
 faded blue bags contain no other bags.
 dotted black bags contain no other bags.','\n')));
 
-create or replace temp table parsed_bag_rules2 as
+create or replace temp table parsed_bag_rules1 as
 select regexp_substr(v, '(.*) bags contain', 1, 1, 'e') bag_color
   , try_to_number(regexp_substr(x.value, '[0-9]*')) n_bags
   , regexp_substr(x.value, '[0-9] (.*) bag', 1, 1, 'e') contains_color
-from bag_rules2, table(split_to_table(regexp_substr(v, 'bags contain (.*)\.', 1, 1, 'e'), ', ')) x
+from bag_rules1, table(split_to_table(regexp_substr(v, 'bags contain (.*)\.', 1, 1, 'e'), ', ')) x
 ;
 
 select count(distinct bag_color)
@@ -38,7 +38,7 @@ from (
     select exp(sum(ln(x.value))) y
     from (
         select *, sys_connect_by_path(n_bags, ' ') path
-        from parsed_bag_rules2
+        from parsed_bag_rules1
         start with bag_color = 'shiny gold'
         connect by bag_color = prior contains_color 
     ), table(split_to_table(substr(path, 2), ' ')) x
